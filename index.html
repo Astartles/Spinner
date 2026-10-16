@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yes, No, Maybe: Decision Spinner</title>
+<meta name="description" content="Can't decide? Spin the wheel for a Yes, No or Maybe. Each has an equal chance.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎡</text></svg>">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --ink: #1c2233;
+    --muted: #5c6580;
+    --yes: #2f9e6e;
+    --no: #d9514e;
+    --maybe: #e8b030;
+    --on-color: #ffffff;
+    --on-maybe: #2a2000;
+    --rim: #1c2233;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151a28;
+      --ink: #f1f3f9;
+      --muted: #9aa3bd;
+      --rim: #f1f3f9;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 1.5rem 1rem;
+    text-align: center;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.5rem, 5vw, 2.2rem);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .sub { margin: .35rem 0 0; color: var(--muted); font-size: 1rem; }
+
+  .stage {
+    position: relative;
+    width: min(86vw, 380px);
+    aspect-ratio: 1;
+  }
+  .pointer {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    width: 0; height: 0;
+    transform: translateX(-50%);
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-top: 32px solid var(--rim);
+    z-index: 3;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,.25));
+  }
+  .wheel {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 8px solid var(--rim);
+    background: conic-gradient(
+      var(--yes) 0deg 120deg,
+      var(--no) 120deg 240deg,
+      var(--maybe) 240deg 360deg
+    );
+    transition: transform 4.2s cubic-bezier(.12, .6, .08, 1);
+    box-shadow: 0 10px 30px rgba(0,0,0,.2);
+  }
+  .label {
+    position: absolute;
+    top: 50%; left: 50%;
+    font-size: clamp(1.4rem, 6vw, 2rem);
+    font-weight: 800;
+    color: var(--on-color);
+    transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(min(86vw, 380px) * -0.30));
+    pointer-events: none;
+  }
+  .label.maybe { color: var(--on-maybe); }
+  .hub {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 22%; aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--bg);
+    border: 6px solid var(--rim);
+    z-index: 2;
+  }
+
+  button {
+    font: inherit;
+    font-size: 1.2rem;
+    font-weight: 800;
+    padding: .8rem 2.6rem;
+    border-radius: 999px;
+    border: 3px solid var(--rim);
+    background: var(--ink);
+    color: var(--bg);
+    cursor: pointer;
+    transition: transform .1s ease, opacity .2s ease;
+  }
+  button:hover:not(:disabled) { transform: translateY(-2px); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .5; cursor: progress; }
+  button:focus-visible { outline: 4px solid var(--maybe); outline-offset: 3px; }
+
+  .result {
+    min-height: 4.5rem;
+    font-size: clamp(2.4rem, 11vw, 3.6rem);
+    font-weight: 900;
+    line-height: 1.1;
+    margin: 0;
+  }
+  .result[data-v="Yes"] { color: var(--yes); }
+  .result[data-v="No"] { color: var(--no); }
+  .result[data-v="Maybe"] { color: var(--maybe); }
+  .result.pop { animation: pop .35s ease-out; }
+  @keyframes pop { 0% { transform: scale(.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+  .count { color: var(--muted); font-size: .9rem; margin: 0; min-height: 1.2em; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wheel { transition-duration: .01s; }
+    .result.pop { animation: none; }
+    button { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Yes, No, or Maybe?</h1>
+    <p class="sub">Spin the wheel. Each answer has an equal chance.</p>
+  </header>
+
+  <div class="stage">
+    <div class="pointer" aria-hidden="true"></div>
+    <div class="wheel" id="wheel" aria-hidden="true">
+      <span class="label" style="--a:60deg">Yes</span>
+      <span class="label" style="--a:180deg">No</span>
+      <span class="label maybe" style="--a:300deg">Maybe</span>
+    </div>
+    <div class="hub" aria-hidden="true"></div>
+  </div>
+
+  <button id="spin" type="button">Spin</button>
+
+  <p class="result" id="result" aria-live="polite" data-v=""></p>
+  <p class="count" id="count"></p>
+
+<script>
+(function () {
+  var OPTIONS = ["Yes", "No", "Maybe"];           // each takes 120 degrees
+  var wheel = document.getElementById("wheel");
+  var btn = document.getElementById("spin");
+  var result = document.getElementById("result");
+  var count = document.getElementById("count");
+  var rotation = 0;
+  var spins = 0;
+  var pending = null;
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  // Unbiased random integer in [0, n) using the browser's crypto source.
+  function randInt(n) {
+    var max = Math.floor(0x100000000 / n) * n;
+    var buf = new Uint32Array(1);
+    do { crypto.getRandomValues(buf); } while (buf[0] >= max);
+    return buf[0] % n;
+  }
+
+  function finish() {
+    if (pending === null) return;
+    var answer = OPTIONS[pending];
+    pending = null;
+    spins++;
+    result.textContent = answer;
+    result.dataset.v = answer;
+    result.classList.remove("pop");
+    void result.offsetWidth;
+    result.classList.add("pop");
+    count.textContent = "Spin " + spins;
+    btn.disabled = false;
+    btn.textContent = "Spin again";
+  }
+
+  btn.addEventListener("click", function () {
+    if (pending !== null) return;
+    btn.disabled = true;
+    result.textContent = "";
+    result.dataset.v = "";
+
+    var pick = randInt(OPTIONS.length);               // the fair choice
+    var center = 60 + 120 * pick;                      // middle of that slice
+    var wobble = randInt(81) - 40;                     // land anywhere inside the slice
+    var target = center + wobble;
+    var extra = 360 * (5 + randInt(3));                // 5 to 7 full turns
+    var delta = (((-target - rotation) % 360) + 360) % 360;
+
+    rotation += extra + delta;
+    pending = pick;
+    wheel.style.transform = "rotate(" + rotation + "deg)";
+
+    if (reduce.matches) { setTimeout(finish, 50); }
+  });
+
+  wheel.addEventListener("transitionend", finish);
+})();
+</script>
+</body>
+</html>
